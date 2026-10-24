@@ -8,6 +8,8 @@
 [![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![Superhuman Go](https://img.shields.io/badge/Superhuman_Go-21_Agents-6366F1?style=for-the-badge&logo=openai&logoColor=white)](https://go.superhuman.com/agent-directory)
+[![QuillBot](https://img.shields.io/badge/QuillBot_AI-7_Paraphrase_Modes-16A34A?style=for-the-badge)](https://quillbot.com/paraphrasing-tool)
+[![Ahrefs](https://img.shields.io/badge/Ahrefs_AI-Reverse--Engineered_v4_Endpoint-FF4D00?style=for-the-badge)](https://ahrefs.com/writing-tools/paraphrasing-tool)
 [![LanguageTool](https://img.shields.io/badge/LanguageTool-Cloud_Engine-15C39A?style=for-the-badge)](https://languagetool.org)
 
 <br/>
@@ -76,6 +78,25 @@ Built by reverse engineering the core engineering principles of official Grammar
 - **`[ ✓ Apply All ]` in 1 Click:** Resolves all detected errors in a single click, instantly updating the writing score to 100 with zero delay.
 - **Anchored Contextual Popups:** Clicking or navigating the caret inside an underlined issue opens an anchored floating card directly below the error with instant **"✓ Accept"**, **"Ignore"**, and **"Add to Dictionary"** actions.
 - **Floating Callout Bubble:** Interactive _"Fix grammar and consistency"_ speech bubble anchored to the text.
+
+### 3. 🔄 QuillBot Paraphrasing AI Engine (7 Modes & Clickable Synonyms)
+- **7 Paraphrasing Modes:**
+  - `Standard`: Balanced rewrite preserving original meaning and tone.
+  - `Fluency`: Fixes grammatical flow and smooth transitions.
+  - `Formal`: Elevates vocabulary and executive structure.
+  - `Simple`: Everyday accessible words for maximum readability.
+  - `Creative`: Restructured clauses and novel figurative phrasing.
+  - `Expand`: Enriches context, elaborates ideas, and adds detail.
+  - `Shorten`: Trims filler and condenses to core message.
+- **Synonym Density Slider (Levels 1–4):**
+  - Smooth slider controlling lexical substitution rate (from Fewest Changes to Maximum Variety).
+- **Freeze Words Protection:**
+  - Define custom terms or brand names (e.g. "Zephyr", acronyms) that are strictly preserved during generation.
+- **Token Diffs & Clickable Alternative Synonyms:**
+  - Words modified during paraphrasing are highlighted in orange.
+  - Clicking any orange word opens an interactive popover with 4 alternative synonyms for instant in-place customization.
+- **Split-Screen Workspace:**
+  - Side-by-side comparison with character/word counters, 1-click **Paste**, **Copy**, **Re-phrase**, and **Insert into Main Document**.
 
 ### 3. 🤖 Superhuman Go 21 AI Agents Suite
 
@@ -204,6 +225,8 @@ Your browser will automatically open:
 | :---------------- | :------------: | :------------------------------------------------------------------------------ | :------------------------------------------------------ |
 | `/api/check`      |     `POST`     | Runs LanguageTool + deterministic rule checks, calculates score and suggestions | `{"text": "A meeting was held by our team..."}`         |
 | `/api/rewrite`    |     `POST`     | Rewrites text across 4 styles (`polish`, `formal`, `concise`, `casual`)         | `{"text": "...", "mode": "formal"}`                     |
+| `/api/paraphrase` |     `POST`     | QuillBot & Ahrefs Paraphraser with token diffs and clickable synonym chips       | `{"text": "...", "mode": "fluency", "synonym_level": 2}`|
+| `/api/ahrefs/paraphrase` | `POST` | Reverse-engineered Ahrefs private v4 endpoint with 8 tones and 1-5 variants     | `{"text": "...", "tone": "Formal", "variants_count": 3}`|
 | `/api/agents`     |     `GET`      | Returns full catalog of 21 Superhuman Go agents with metadata                   | _None_                                                  |
 | `/api/agents/run` |     `POST`     | Executes a specific agent on input text                                         | `{"agent_id": "reader_reactions", "text": "..."}`       |
 | `/api/agent/chat` |     `POST`     | Interactive Superhuman Go conversational assistant                              | `{"text": "...", "action": "summarize", "query": ""}`   |
@@ -243,7 +266,9 @@ Rewriter/
 │       ├── languagetool.py        # Cloud LanguageTool API client
 │       ├── agents.py              # 21 Superhuman Go Specialized AI Agents
 │       ├── tone.py                # Flesch-Kincaid & Tone Analyzer
-│       └── ai_provider.py         # AI Rewrite Engine (Offline / Ollama / OpenAI)
+│       ├── ai_provider.py         # AI Rewrite Engine (Offline / Ollama / OpenAI)
+│       ├── paraphraser.py         # QuillBot 7-Mode Engine & Word Replacement Chips
+│       └── ahrefs_client.py       # Ahrefs v4 /stGetAIGeneratedContent Reverse-Engineered Client
 ├── server.py                      # FastAPI Backend Server & Static Asset Host
 ├── start_browser_app.py           # Cross-platform Launcher (Auto browser launch)
 ├── start_browser_app.bat          # 1-Click Windows Launcher

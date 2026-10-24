@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Grammarly: AI Writing and Grammar Checker App</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=2.5">
+  <link rel="stylesheet" href="/static/css/style.css?v=2.8">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='48' fill='%2315C39A'/><text x='50%' y='67%' font-size='56' font-family='sans-serif' font-weight='900' fill='white' text-anchor='middle'>G</text></svg>">
 </head>
 <body>
@@ -33,6 +33,9 @@
       </button>
       <button class="btn btn-outline" id="btnCopy" title="Copy text to clipboard">
         <span>📋 Copy Text</span>
+      </button>
+      <button class="btn btn-outline" id="btnOpenParaphraser" title="Open QuillBot Paraphrasing Tool" style="border-color:#22c55e;color:#16a34a;font-weight:700;">
+        <span>🔄 Paraphraser</span>
       </button>
       <a href="/extension" class="btn btn-outline" target="_blank" title="Test the Grammarly Floating Web Plugin">
         <span>🧩 Plugin Demo</span>
@@ -229,6 +232,7 @@
             <option value="offline">High-Speed Hybrid Engine (LanguageTool + Offline Rules)</option>
             <option value="ollama">Local Ollama LLM (Llama 3.2, Mistral, Qwen)</option>
             <option value="openai">OpenAI / Compatible API (GPT-4o-mini, Groq, Together)</option>
+            <option value="huggingface">Hugging Face Paraphrase API (Free T5/BART Models)</option>
           </select>
         </div>
 
@@ -351,6 +355,135 @@
     </div>
   </div>
 
-  <script src="/static/js/app.js?v=2.5"></script>
+  <script src="/static/js/app.js?v=2.8"></script>
+
+  <!-- QuillBot AI Paraphrasing Tool Modal -->
+  <div class="modal-overlay" id="paraphraserModal">
+    <div class="paraphraser-box">
+      <!-- Paraphraser Header with Modes, Ahrefs Tones, and Synonyms Slider -->
+      <div class="paraphraser-header">
+        <div class="para-header-left">
+          <!-- Engine Switcher: QuillBot vs Ahrefs -->
+          <div class="para-engine-switcher" id="paraEngineSwitcher">
+            <button class="para-engine-tab active" data-engine="quillbot">
+              <span class="para-brand-icon">Q</span>
+              <span>QuillBot AI</span>
+            </button>
+            <button class="para-engine-tab" data-engine="ahrefs">
+              <span class="para-brand-icon" style="background:#ff4d00;color:white;">A</span>
+              <span>Ahrefs AI</span>
+            </button>
+          </div>
+
+          <!-- 7 QuillBot Modes -->
+          <div class="para-modes-bar" id="paraModesBar">
+            <button class="para-mode-chip active" data-mode="standard">Standard</button>
+            <button class="para-mode-chip" data-mode="fluency">Fluency</button>
+            <button class="para-mode-chip" data-mode="formal">Formal</button>
+            <button class="para-mode-chip" data-mode="simple">Simple</button>
+            <button class="para-mode-chip" data-mode="creative">Creative</button>
+            <button class="para-mode-chip" data-mode="expand">Expand</button>
+            <button class="para-mode-chip" data-mode="shorten">Shorten</button>
+          </div>
+
+          <!-- Ahrefs Tones Bar -->
+          <div class="para-modes-bar" id="paraAhrefsTonesBar" style="display:none;">
+            <button class="para-mode-chip active" data-tone="Formal">Formal</button>
+            <button class="para-mode-chip" data-tone="Friendly">Friendly</button>
+            <button class="para-mode-chip" data-tone="Casual">Casual</button>
+            <button class="para-mode-chip" data-tone="Professional">Professional</button>
+            <button class="para-mode-chip" data-tone="Diplomatic">Diplomatic</button>
+            <button class="para-mode-chip" data-tone="Academic">Academic</button>
+            <button class="para-mode-chip" data-tone="Simplified">Simplified</button>
+            <button class="para-mode-chip" data-tone="Urgent">Urgent</button>
+          </div>
+        </div>
+
+        <div class="para-header-right">
+          <!-- QuillBot Synonym Level Slider (1 to 4) -->
+          <div class="para-slider-group" id="paraSliderGroup">
+            <span class="para-slider-label">Synonyms:</span>
+            <input type="range" min="1" max="4" value="2" id="paraSynonymSlider" class="para-slider" title="Synonym density">
+            <span class="para-slider-val" id="paraSliderVal">Balanced</span>
+          </div>
+
+          <!-- Ahrefs Variants Count Dropdown -->
+          <div class="para-slider-group" id="paraVariantsGroup" style="display:none;">
+            <span class="para-slider-label">Variants:</span>
+            <select id="selectParaVariants" class="para-select-variants">
+              <option value="3" selected>3 Variants</option>
+              <option value="1">1 Variant</option>
+              <option value="5">5 Variants</option>
+            </select>
+          </div>
+
+          <button class="popup-close" id="btnCloseParaphraser">✕</button>
+        </div>
+      </div>
+
+      <!-- Freeze Words Strip -->
+      <div class="para-freeze-strip">
+        <span style="font-size:0.75rem;color:var(--text-muted);font-weight:600;">❄️ Freeze Words:</span>
+        <div class="para-freeze-tags" id="paraFreezeTags"></div>
+        <input type="text" id="inputFreezeWord" class="para-freeze-input" placeholder="+ Add word to freeze (press Enter)...">
+      </div>
+
+      <!-- Split Screen Panes (Original vs Paraphrased) -->
+      <div class="para-split-body">
+        <!-- Left Pane: Input -->
+        <div class="para-pane para-pane-left">
+          <div class="para-pane-header">
+            <span>Original Text</span>
+            <div class="para-pane-actions">
+              <button class="para-btn-tiny" id="btnParaPaste">📋 Paste</button>
+              <button class="para-btn-tiny" id="btnParaClear">🗑️ Clear</button>
+            </div>
+          </div>
+          <textarea class="para-textarea" id="paraInputText" placeholder="Paste or write text here to paraphrase..."></textarea>
+          <div class="para-pane-footer">
+            <span id="paraInputStats">0 words • 0 characters</span>
+            <button class="btn btn-primary" id="btnDoParaphrase" style="background:#15C39A;padding:6px 18px;font-weight:700;">
+              <span>⚡ Paraphrase</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Right Pane: Paraphrased Output with Token Diffs -->
+        <div class="para-pane para-pane-right">
+          <div class="para-pane-header">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span>Paraphrased Output</span>
+              <span class="para-badge-changes" id="paraChangesBadge">0 changes</span>
+            </div>
+            <div class="para-pane-actions">
+              <button class="para-btn-tiny" id="btnParaRephrase">🔁 Re-phrase</button>
+              <button class="para-btn-tiny" id="btnParaCopy">📋 Copy</button>
+            </div>
+          </div>
+          <!-- Multi-Variant Selector Bar (Ahrefs mode) -->
+          <div class="para-variants-bar" id="paraVariantsBar" style="display:none;"></div>
+
+          <!-- Interactive Token Container with Clickable Alternative Synonyms -->
+          <div class="para-output-container" id="paraOutputContainer">
+            <div class="para-placeholder">Click 'Paraphrase' to generate restructured text with alternative synonym chips.</div>
+          </div>
+          <div class="para-pane-footer">
+            <span id="paraOutputStats">0 words</span>
+            <button class="btn btn-outline" id="btnParaSendToEditor">
+              <span>📝 Insert into Main Document</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Alternative Synonyms Popover (Anchors to clicked word) -->
+      <div class="para-synonym-popover" id="paraSynonymPopover" style="display:none;">
+        <div class="para-syn-title">Choose Alternative Synonym</div>
+        <div class="para-syn-list" id="paraSynList"></div>
+      </div>
+
+    </div>
+  </div>
+
 </body>
 </html>

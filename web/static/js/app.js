@@ -58,6 +58,7 @@ class GrammarlyApp {
 
     this.initEventListeners();
     this.initTheme();
+    this.initParaphraser();
     this.loadSampleText();
   }
 
@@ -909,6 +910,434 @@ We conduct a daily standup each morning through end of week to identify blockers
       console.error("Run agent failed:", err);
       this.agentResponseContent.innerText = `Failed to run ${agentName}.`;
     }
+  }
+
+
+  initParaphraser() {
+    this.paraModal = document.getElementById("paraphraserModal");
+    this.btnOpenParaphraser = document.getElementById("btnOpenParaphraser");
+    this.btnCloseParaphraser = document.getElementById("btnCloseParaphraser");
+    this.paraInputText = document.getElementById("paraInputText");
+    this.paraOutputContainer = document.getElementById("paraOutputContainer");
+    this.paraSynonymSlider = document.getElementById("paraSynonymSlider");
+    this.paraSliderVal = document.getElementById("paraSliderVal");
+    this.btnDoParaphrase = document.getElementById("btnDoParaphrase");
+    this.btnParaRephrase = document.getElementById("btnParaRephrase");
+    this.btnParaPaste = document.getElementById("btnParaPaste");
+    this.btnParaClear = document.getElementById("btnParaClear");
+    this.btnParaCopy = document.getElementById("btnParaCopy");
+    this.btnParaSendToEditor = document.getElementById("btnParaSendToEditor");
+    this.inputFreezeWord = document.getElementById("inputFreezeWord");
+    this.paraFreezeTags = document.getElementById("paraFreezeTags");
+    this.paraSynonymPopover = document.getElementById("paraSynonymPopover");
+    this.paraSynList = document.getElementById("paraSynList");
+    this.paraChangesBadge = document.getElementById("paraChangesBadge");
+    this.paraInputStats = document.getElementById("paraInputStats");
+    this.paraOutputStats = document.getElementById("paraOutputStats");
+
+    this.paraMode = "standard";
+    this.paraEngine = "quillbot";
+    this.paraTone = "Formal";
+    this.paraVariantsCount = 3;
+    this.allVariants = [];
+    this.activeVariantIdx = 0;
+    this.paraSynonymLevel = 2;
+    this.paraFreezeWords = [];
+    this.currentParaTokens = [];
+    this.activeTokenIndex = null;
+
+    this.paraEngineSwitcher = document.getElementById("paraEngineSwitcher");
+    this.paraModesBar = document.getElementById("paraModesBar");
+    this.paraAhrefsTonesBar = document.getElementById("paraAhrefsTonesBar");
+    this.paraSliderGroup = document.getElementById("paraSliderGroup");
+    this.paraVariantsGroup = document.getElementById("paraVariantsGroup");
+    this.selectParaVariants = document.getElementById("selectParaVariants");
+    this.paraVariantsBar = document.getElementById("paraVariantsBar");
+
+    if (!this.paraModal) return;
+
+    // Open Paraphraser Modal
+    this.btnOpenParaphraser?.addEventListener("click", () => {
+      this.paraModal.classList.add("active");
+      if (!this.paraInputText.value.trim() && this.textarea.value.trim()) {
+        this.paraInputText.value = this.textarea.value.trim();
+        this.updateParaInputStats();
+      }
+    });
+
+    // Close Modal
+    this.btnCloseParaphraser?.addEventListener("click", () => {
+      this.paraModal.classList.remove("active");
+      this.hideParaPopover();
+    });
+
+    // Outside click dismisses popover
+    document.addEventListener("click", (e) => {
+      if (this.paraSynonymPopover && !this.paraSynonymPopover.contains(e.target) && !e.target.classList.contains("token-replaced")) {
+        this.hideParaPopover();
+      }
+    });
+
+    // Input stats update
+    this.paraInputText?.addEventListener("input", () => {
+      this.updateParaInputStats();
+    });
+
+    // Engine Switcher: QuillBot vs Ahrefs
+    document.querySelectorAll(".para-engine-tab").forEach((tab) => {
+      tab.addEventListener("click", () => {
+        document.querySelectorAll(".para-engine-tab").forEach((t) => t.classList.remove("active"));
+        tab.classList.add("active");
+        this.paraEngine = tab.dataset.engine;
+
+        if (this.paraEngine === "ahrefs") {
+          if (this.paraModesBar) this.paraModesBar.style.display = "none";
+          if (this.paraSliderGroup) this.paraSliderGroup.style.display = "none";
+          if (this.paraAhrefsTonesBar) this.paraAhrefsTonesBar.style.display = "flex";
+          if (this.paraVariantsGroup) this.paraVariantsGroup.style.display = "flex";
+          if (this.btnDoParaphrase) this.btnDoParaphrase.style.background = "#ff4d00";
+        } else {
+          if (this.paraModesBar) this.paraModesBar.style.display = "flex";
+          if (this.paraSliderGroup) this.paraSliderGroup.style.display = "flex";
+          if (this.paraAhrefsTonesBar) this.paraAhrefsTonesBar.style.display = "none";
+          if (this.paraVariantsGroup) this.paraVariantsGroup.style.display = "none";
+          if (this.btnDoParaphrase) this.btnDoParaphrase.style.background = "#15C39A";
+        }
+
+        if (this.paraInputText && this.paraInputText.value.trim()) {
+          this.executeParaphrase();
+        }
+      });
+    });
+
+    // QuillBot Modes Bar selection
+    document.querySelectorAll("#paraModesBar .para-mode-chip").forEach((chip) => {
+      chip.addEventListener("click", () => {
+        document.querySelectorAll("#paraModesBar .para-mode-chip").forEach((c) => c.classList.remove("active"));
+        chip.classList.add("active");
+        this.paraMode = chip.dataset.mode;
+        if (this.paraInputText.value.trim()) {
+          this.executeParaphrase();
+        }
+      });
+    });
+
+    // Ahrefs Tones Bar selection
+    document.querySelectorAll("#paraAhrefsTonesBar .para-mode-chip").forEach((chip) => {
+      chip.addEventListener("click", () => {
+        document.querySelectorAll("#paraAhrefsTonesBar .para-mode-chip").forEach((c) => c.classList.remove("active"));
+        chip.classList.add("active");
+        this.paraTone = chip.dataset.tone;
+        if (this.paraInputText.value.trim()) {
+          this.executeParaphrase();
+        }
+      });
+    });
+
+    // Ahrefs Variants Count selection
+    this.selectParaVariants?.addEventListener("change", (e) => {
+      this.paraVariantsCount = parseInt(e.target.value, 10);
+      if (this.paraInputText && this.paraInputText.value.trim()) {
+        this.executeParaphrase();
+      }
+    });
+
+    // Synonyms Slider
+    const sliderLabels = { 1: "Fewest", 2: "Balanced", 3: "Dynamic", 4: "Maximum" };
+    this.paraSynonymSlider?.addEventListener("input", (e) => {
+      this.paraSynonymLevel = parseInt(e.target.value, 10);
+      if (this.paraSliderVal) {
+        this.paraSliderVal.innerText = sliderLabels[this.paraSynonymLevel] || "Balanced";
+      }
+    });
+
+    // Freeze Words input
+    this.inputFreezeWord?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const word = this.inputFreezeWord.value.trim();
+        if (word && !this.paraFreezeWords.includes(word)) {
+          this.paraFreezeWords.push(word);
+          this.renderFreezeTags();
+          this.inputFreezeWord.value = "";
+        }
+      }
+    });
+
+    // Paraphrase Execution Actions
+    this.btnDoParaphrase?.addEventListener("click", () => this.executeParaphrase());
+    this.btnParaRephrase?.addEventListener("click", () => this.executeParaphrase());
+
+    // Paste
+    this.btnParaPaste?.addEventListener("click", async () => {
+      try {
+        const text = await navigator.clipboard.readText();
+        this.paraInputText.value = text;
+        this.updateParaInputStats();
+      } catch (err) {
+        console.error("Paste failed:", err);
+      }
+    });
+
+    // Clear
+    this.btnParaClear?.addEventListener("click", () => {
+      this.paraInputText.value = "";
+      this.updateParaInputStats();
+      this.paraOutputContainer.innerHTML = '<div class="para-placeholder">Click \'Paraphrase\' to generate restructured text with alternative synonym chips.</div>';
+      if (this.paraChangesBadge) this.paraChangesBadge.innerText = "0 changes";
+      if (this.paraOutputStats) this.paraOutputStats.innerText = "0 words";
+      this.currentParaTokens = [];
+    });
+
+    // Copy Output
+    this.btnParaCopy?.addEventListener("click", () => {
+      const fullText = this.getParaphrasedPlaintext();
+      if (fullText) {
+        navigator.clipboard.writeText(fullText);
+        const orig = this.btnParaCopy.innerText;
+        this.btnParaCopy.innerText = "Copied! ✓";
+        setTimeout(() => { this.btnParaCopy.innerText = orig; }, 1500);
+      }
+    });
+
+    // Send to Document
+    this.btnParaSendToEditor?.addEventListener("click", () => {
+      const fullText = this.getParaphrasedPlaintext();
+      if (fullText) {
+        this.textarea.value = fullText;
+        this.handleInput();
+        this.paraModal.classList.remove("active");
+      }
+    });
+  }
+
+  updateParaInputStats() {
+    const text = this.paraInputText.value;
+    const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+    const chars = text.length;
+    if (this.paraInputStats) {
+      this.paraInputStats.innerText = `${words} words • ${chars} characters`;
+    }
+  }
+
+  renderFreezeTags() {
+    if (!this.paraFreezeTags) return;
+    this.paraFreezeTags.innerHTML = this.paraFreezeWords.map((w, idx) => `
+      <span class="para-freeze-tag">
+        <span>${this.escapeHtml(w)}</span>
+        <span class="para-freeze-tag-remove" data-idx="${idx}">×</span>
+      </span>
+    `).join("");
+
+    this.paraFreezeTags.querySelectorAll(".para-freeze-tag-remove").forEach((el) => {
+      el.addEventListener("click", () => {
+        const idx = parseInt(el.dataset.idx, 10);
+        this.paraFreezeWords.splice(idx, 1);
+        this.renderFreezeTags();
+      });
+    });
+  }
+
+  async executeParaphrase() {
+    const text = this.paraInputText.value.trim();
+    if (!text) return;
+
+    const isAhrefs = this.paraEngine === "ahrefs";
+    const engineLabel = isAhrefs ? `Ahrefs AI (${this.paraTone})` : `QuillBot ${this.paraMode}`;
+
+    this.btnDoParaphrase.disabled = true;
+    this.btnDoParaphrase.innerHTML = `<span>⏳ Paraphrasing...</span>`;
+    this.paraOutputContainer.innerHTML = `<div style="color:var(--text-muted);font-style:italic;padding:12px;">Rewriting text with ${engineLabel}...</div>`;
+
+    try {
+      const endpoint = isAhrefs ? "/api/ahrefs/paraphrase" : "/api/paraphrase";
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text,
+          mode: this.paraMode,
+          provider: this.paraEngine,
+          tone: this.paraTone,
+          variants_count: this.paraVariantsCount,
+          synonym_level: this.paraSynonymLevel,
+          freeze_words: this.paraFreezeWords
+        })
+      });
+      const data = await res.json();
+      this.allVariants = data.variants || [data.paraphrased_text || ""];
+      this.activeVariantIdx = 0;
+      this.currentParaTokens = data.tokens || [];
+
+      // Render Multi-Variant selector if multiple variants returned
+      this.renderVariantPills(this.allVariants);
+
+      this.renderParaphraseTokens(this.currentParaTokens);
+      if (this.paraChangesBadge) {
+        const sourceTag = data.source === "ahrefs_live_v4" ? " · Ahrefs Live v4" : (isAhrefs ? " · Ahrefs Engine" : "");
+        this.paraChangesBadge.innerText = `${data.changes_count || 0} changes${sourceTag}`;
+      }
+      if (this.paraOutputStats) {
+        const wordCount = (data.paraphrased_text || "").trim().split(/\s+/).filter(Boolean).length;
+        this.paraOutputStats.innerText = `${wordCount} words`;
+      }
+    } catch (err) {
+      console.error("Paraphrase failed:", err);
+      this.paraOutputContainer.innerHTML = `<div style="color:var(--error);padding:12px;">Paraphrase failed. Check server status.</div>`;
+    } finally {
+      this.btnDoParaphrase.disabled = false;
+      this.btnDoParaphrase.innerHTML = `<span>⚡ Paraphrase</span>`;
+    }
+  }
+
+  renderVariantPills(variants) {
+    if (!this.paraVariantsBar) return;
+    if (!variants || variants.length <= 1) {
+      this.paraVariantsBar.style.display = "none";
+      this.paraVariantsBar.innerHTML = "";
+      return;
+    }
+
+    this.paraVariantsBar.style.display = "flex";
+    this.paraVariantsBar.innerHTML = `
+      <span style="font-size:0.75rem;color:var(--text-muted);font-weight:700;margin-right:6px;">Variants:</span>
+      ${variants.map((v, i) => `
+        <button class="para-variant-pill ${i === this.activeVariantIdx ? "active" : ""}" data-idx="${i}">
+          Variant ${i + 1}
+        </button>
+      `).join("")}
+    `;
+
+    this.paraVariantsBar.querySelectorAll(".para-variant-pill").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const idx = parseInt(btn.dataset.idx, 10);
+        this.selectVariant(idx);
+      });
+    });
+  }
+
+  selectVariant(idx) {
+    if (!this.allVariants[idx]) return;
+    this.activeVariantIdx = idx;
+    this.paraVariantsBar.querySelectorAll(".para-variant-pill").forEach((btn, i) => {
+      btn.classList.toggle("active", i === idx);
+    });
+
+    const chosenText = this.allVariants[idx];
+    const tokens = chosenText.split(/(\s+)/).filter(Boolean).map((t) => ({
+      text: t,
+      original: t,
+      type: t.trim() ? "replaced" : "unchanged",
+      alternatives: []
+    }));
+    this.currentParaTokens = tokens;
+    this.renderParaphraseTokens(tokens);
+
+    if (this.paraOutputStats) {
+      const words = chosenText.trim().split(/\s+/).filter(Boolean).length;
+      this.paraOutputStats.innerText = `${words} words`;
+    }
+  }
+
+  renderParaphraseTokens(tokens) {
+    if (!tokens || tokens.length === 0) {
+      this.paraOutputContainer.innerHTML = "";
+      return;
+    }
+
+    let html = "";
+    tokens.forEach((tok, idx) => {
+      let cls = "para-token";
+      if (tok.type === "replaced") {
+        cls += " token-replaced";
+      } else if (tok.type === "added") {
+        cls += " token-added";
+      }
+      
+      const needsSpace = idx > 0 && !/^[,.!?;:'")\]}]/.test(tok.text) && !html.endsWith("(") && !html.endsWith('"') && !html.endsWith("'");
+      if (needsSpace) html += " ";
+
+      if (tok.type === "replaced" && tok.alternatives && tok.alternatives.length > 0) {
+        html += `<span class="${cls}" data-tok-idx="${idx}" title="Click to view alternative synonyms">${this.escapeHtml(tok.text)}</span>`;
+      } else {
+        html += `<span class="${cls}">${this.escapeHtml(tok.text)}</span>`;
+      }
+    });
+
+    this.paraOutputContainer.innerHTML = html;
+
+    // Attach click events on replaced tokens to show alternative synonyms dropdown
+    this.paraOutputContainer.querySelectorAll(".token-replaced").forEach((el) => {
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const tokIdx = parseInt(el.dataset.tokIdx, 10);
+        this.showParaPopover(tokIdx, el);
+      });
+    });
+  }
+
+  showParaPopover(tokIdx, element) {
+    const tok = this.currentParaTokens[tokIdx];
+    if (!tok || !tok.alternatives || tok.alternatives.length === 0) return;
+    this.activeTokenIndex = tokIdx;
+
+    let itemsHtml = tok.alternatives.map((alt) => `
+      <div class="para-syn-item" data-word="${this.escapeHtml(alt)}">
+        <span>${this.escapeHtml(alt)}</span>
+        <span style="font-size:0.75rem;color:var(--text-muted);">✓</span>
+      </div>
+    `).join("");
+
+    this.paraSynList.innerHTML = itemsHtml;
+
+    const modalRect = this.paraModal.getBoundingClientRect();
+    const elRect = element.getBoundingClientRect();
+
+    let top = (elRect.bottom - modalRect.top) + 6;
+    let left = (elRect.left - modalRect.left);
+
+    if (left + 230 > modalRect.width) {
+      left = Math.max(16, modalRect.width - 240);
+    }
+
+    this.paraSynonymPopover.style.top = `${top}px`;
+    this.paraSynonymPopover.style.left = `${left}px`;
+    this.paraSynonymPopover.style.display = "block";
+
+    this.paraSynList.querySelectorAll(".para-syn-item").forEach((item) => {
+      item.addEventListener("click", () => {
+        const newWord = item.dataset.word;
+        this.selectAlternativeSynonym(tokIdx, newWord);
+      });
+    });
+  }
+
+  selectAlternativeSynonym(tokIdx, newWord) {
+    if (this.currentParaTokens[tokIdx]) {
+      this.currentParaTokens[tokIdx].text = newWord;
+      this.renderParaphraseTokens(this.currentParaTokens);
+      this.hideParaPopover();
+    }
+  }
+
+  hideParaPopover() {
+    if (this.paraSynonymPopover) {
+      this.paraSynonymPopover.style.display = "none";
+    }
+    this.activeTokenIndex = null;
+  }
+
+  getParaphrasedPlaintext() {
+    if (!this.currentParaTokens || this.currentParaTokens.length === 0) {
+      return this.paraOutputContainer.innerText || "";
+    }
+    let res = "";
+    this.currentParaTokens.forEach((tok, idx) => {
+      const needsSpace = idx > 0 && !/^[,.!?;:'")\]}]/.test(tok.text) && !res.endsWith("(") && !res.endsWith('"');
+      if (needsSpace) res += " ";
+      res += tok.text;
+    });
+    return res;
   }
 
   escapeHtml(str) {

@@ -1,8 +1,9 @@
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from .rules import RuleEngine, Suggestion
 from .tone import ToneAnalyzer
 from .ai_provider import AIProvider
 from .languagetool import LanguageToolClient
+from .paraphraser import ParaphraserEngine
 
 class GrammarEngine:
     def __init__(self, config_data: Dict[str, Any]):
@@ -11,11 +12,13 @@ class GrammarEngine:
         self.tone_analyzer = ToneAnalyzer()
         self.ai_provider = AIProvider(config_data)
         self.lt_client = LanguageToolClient()
+        self.paraphraser = ParaphraserEngine(self.ai_provider)
 
     def update_config(self, config_data: Dict[str, Any]):
         self.config = config_data
         self.rule_engine = RuleEngine(config_data.get("personal_dictionary", []))
         self.ai_provider.update_config(config_data)
+        self.paraphraser = ParaphraserEngine(self.ai_provider)
 
     def check(self, text: str) -> Dict[str, Any]:
         if not text or not text.strip():
@@ -55,6 +58,28 @@ class GrammarEngine:
 
     def rewrite(self, text: str, mode: str = "polish") -> str:
         return self.ai_provider.rewrite(text, mode)
+
+    def paraphrase(
+        self,
+        text: str,
+        mode: str = "standard",
+        provider: str = "quillbot",
+        tone: str = "Formal",
+        variants_count: int = 1,
+        synonym_level: int = 2,
+        freeze_words: Optional[List[str]] = None,
+        captcha_token: Optional[str] = None
+    ) -> Dict[str, Any]:
+        return self.paraphraser.paraphrase(
+            text=text,
+            mode=mode,
+            provider=provider,
+            tone=tone,
+            variants_count=variants_count,
+            synonym_level=synonym_level,
+            freeze_words=freeze_words,
+            captcha_token=captcha_token
+        )
 
     def add_dictionary_word(self, word: str):
         self.rule_engine.spellchecker.add_word(word)

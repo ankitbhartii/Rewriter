@@ -58,6 +58,16 @@ class RewriteRequest(BaseModel):
     text: str
     mode: Optional[str] = "polish"
 
+class ParaphraseRequest(BaseModel):
+    text: str
+    mode: Optional[str] = "standard"
+    provider: Optional[str] = "quillbot"
+    tone: Optional[str] = "Formal"
+    variants_count: Optional[int] = 1
+    synonym_level: Optional[int] = 2
+    freeze_words: Optional[List[str]] = []
+    captcha_token: Optional[str] = None
+
 class AgentChatRequest(BaseModel):
     text: str
     action: Optional[str] = "chat"
@@ -138,6 +148,32 @@ async def rewrite_text(req: RewriteRequest):
         "rewritten": rewritten,
         "mode": mode
     }
+
+@app.post("/api/paraphrase")
+async def paraphrase_text(req: ParaphraseRequest):
+    return engine.paraphrase(
+        text=req.text,
+        mode=req.mode or "standard",
+        provider=req.provider or "quillbot",
+        tone=req.tone or "Formal",
+        variants_count=req.variants_count or 1,
+        synonym_level=req.synonym_level or 2,
+        freeze_words=req.freeze_words or [],
+        captcha_token=req.captcha_token
+    )
+
+@app.post("/api/ahrefs/paraphrase")
+async def ahrefs_paraphrase(req: ParaphraseRequest):
+    return engine.paraphrase(
+        text=req.text,
+        mode=req.mode or "standard",
+        provider="ahrefs",
+        tone=req.tone or "Formal",
+        variants_count=req.variants_count or 3,
+        synonym_level=req.synonym_level or 2,
+        freeze_words=req.freeze_words or [],
+        captcha_token=req.captcha_token
+    )
 
 @app.post("/api/agent/chat")
 async def agent_chat(req: AgentChatRequest):
