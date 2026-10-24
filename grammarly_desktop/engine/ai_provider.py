@@ -213,3 +213,76 @@ class AIProvider:
         except Exception:
             pass
         return None
+
+    def _call_ollama_raw(self, prompt: str) -> Optional[str]:
+        base_url = self.config.get("ollama_url", "http://localhost:11434").rstrip("/")
+        model = self.config.get("ollama_model", "llama3.2:latest")
+        try:
+            req = urllib.request.Request(
+                f"{base_url}/api/generate",
+                data=json.dumps({"model": model, "prompt": prompt, "stream": False}).encode("utf-8"),
+                headers={"Content-Type": "application/json"}
+            )
+            with urllib.request.urlopen(req, timeout=20) as response:
+                data = json.loads(response.read().decode("utf-8"))
+                output = data.get("response", "").strip()
+                if output:
+                    return output.strip('"\'')
+        except Exception as e:
+            print(f"[Ollama] Generation failed: {e}")
+        return None
+
+    def _call_openai_raw(self, prompt: str) -> Optional[str]:
+        api_key = self.config.get("openai_api_key", "").strip()
+        if not api_key:
+            return None
+        base_url = self.config.get("openai_base_url", "https://api.openai.com/v1").rstrip("/")
+        model = self.config.get("openai_model", "gpt-4o-mini")
+        try:
+            payload = json.dumps({
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": "You are a professional QuillBot paraphrasing engine. Return ONLY the rewritten text without explanations or quotes."},
+                    {"role": "user", "content": prompt}
+                ],
+                "temperature": 0.5
+            }).encode("utf-8")
+            req = urllib.request.Request(
+                f"{base_url}/chat/completions",
+                data=payload,
+                headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
+            )
+            with urllib.request.urlopen(req, timeout=20) as response:
+                data = json.loads(response.read().decode("utf-8"))
+                output = data["choices"][0]["message"]["content"].strip()
+                if output:
+                    return output.strip('"\'')
+        except Exception as e:
+            print(f"[OpenAI] Generation failed: {e}")
+        return None
+
+    def _call_huggingface_raw(self, text: str, mode: str = "standard") -> Optional[str]:
+        hf_token = self.config.get("huggingface_token", "").strip()
+        model = self.config.get("huggingface_model", "Vamsi/T5_Paraphrase_Paws")
+        headers = {"Content-Type": "application/json"}
+        if hf_token:
+            headers["Authorization"] = f"Bearer {hf_token}"
+        try:
+            payload = json.dumps({
+                "inputs": f"paraphrase: {text}",
+                "parameters": {"max_length": 256, "num_beams": 4, "no_repeat_ngram_size": 2}
+            }).encode("utf-8")
+            req = urllib.request.Request(
+                f"https://api-inference.huggingface.co/models/{model}",
+                data=payload,
+                headers=headers
+            )
+            with urllib.request.urlopen(req, timeout=15) as response:
+                data = json.loads(response.read().decode("utf-8"))
+                if isinstance(data, list) and len(data) > 0:
+                    generated = data[0].get("generated_text", "")
+                    if generated:
+                        return generated.strip()
+        except Exception as e:
+            print(f"[HuggingFace] Inference failed: {e}")
+        return None
