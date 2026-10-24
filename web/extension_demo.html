@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Grammarly Web Plugin & SDK Interactive Demo</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script src="/static/js/grammarly-plugin.js"></script>
+  <style>
+    .demo-container {
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+    .demo-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-md);
+    }
+    .demo-header {
+      margin-bottom: 16px;
+    }
+    .demo-header h2 {
+      font-size: 1.25rem;
+      margin-bottom: 6px;
+    }
+    .demo-header p {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+    .input-box {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 14px 44px 14px 14px;
+      font-size: 1rem;
+      font-family: inherit;
+      background: var(--bg-main);
+      color: var(--text-main);
+      box-sizing: border-box;
+      outline: none;
+    }
+    .input-box:focus {
+      border-color: var(--primary);
+      background: var(--bg-surface);
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <div class="header-left">
+      <a href="/" class="brand">
+        <div class="brand-icon">G</div>
+        <span>Grammarly Web Plugin</span>
+      </a>
+    </div>
+    <div class="header-right">
+      <a href="/" class="btn btn-primary">← Open Full Editor</a>
+    </div>
+  </header>
+
+  <div class="demo-container">
+    <div style="margin-bottom: 28px; text-align: center;">
+      <h1 style="font-size: 1.8rem; margin-bottom: 8px;">Grammarly Web Component & Extension SDK</h1>
+      <p style="color: var(--text-muted); max-width: 600px; margin: 0 auto;">
+        Demonstrating how the <code>&lt;grammarly-editor-plugin&gt;</code> web component attaches the floating Grammarly widget and real-time writing assistant to any input field on the web.
+      </p>
+    </div>
+
+    <!-- Email Composer Scenario -->
+    <div class="demo-card">
+      <div class="demo-header">
+        <h2>✉️ Email Composer</h2>
+        <p>Notice the floating Grammarly G-widget docked in the bottom-right corner of the email box.</p>
+      </div>
+      <grammarly-editor-plugin>
+        <textarea class="input-box" rows="4" placeholder="Draft your email message...">Dear team, we recieved the documents and their are alot of questions regarding the update .</textarea>
+      </grammarly-editor-plugin>
+    </div>
+
+    <!-- Social Media Post Scenario -->
+    <div class="demo-card">
+      <div class="demo-header">
+        <h2>💬 Social Media Post / Comment</h2>
+        <p>Type anything below with typos or grammar slips and see the counter badge update immediately.</p>
+      </div>
+      <grammarly-editor-plugin>
+        <textarea class="input-box" rows="3" placeholder="What's happening?">i think this is a apple and he go to work early .</textarea>
+      </grammarly-editor-plugin>
+    </div>
+
+    <!-- Single Line Search / Title -->
+    <div class="demo-card">
+      <div class="demo-header">
+        <h2>🏷️ Single-line Text Field</h2>
+        <p>Even single-line input fields can have real-time assistance.</p>
+      </div>
+      <grammarly-editor-plugin>
+        <input type="text" class="input-box" value="Due to the fact that we were late" placeholder="Subject or Title...">
+      </grammarly-editor-plugin>
+    </div>
+  </div>
+
+</body>
+</html>
